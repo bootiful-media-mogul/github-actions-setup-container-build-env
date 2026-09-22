@@ -2,6 +2,7 @@ name: 'Setup Container and Cloud Environment'
 description: 'Sets up gcloud, kubectl, and more'
 
 inputs:
+
   gcloud_project:
     description: 'the google cloud project name'
     required: true
@@ -14,28 +15,26 @@ inputs:
     description: 'the name of the application to be deployed'
     required: true
   
-  gcloud_sa_key :
+  gcloud_sa_key:
     description: 'the service account key for google cloud'
-    required: true 
+    required: true
 
 runs:
   using: 'composite'
-
   steps:
-    
+
     - uses: 'google-github-actions/auth@v2'
-        with:
-          credentials_json: '${{ inputs.gcloud_sa_key }}'
+      with:
+        credentials_json: '${{ inputs.gcloud_sa_key }}'
 
     - run: |
-        gcloud config set project $GCLOUD_PROJECT
+        gcloud config set project ${{ inputs.gcloud_project }}
         gcloud --quiet auth configure-docker us-docker.pkg.dev
+      shell: bash
 
-    # we should upgrade this to v4.. 
-    - name: Set up Docker
-      uses: docker/setup-buildx-action@v1
+    - uses: docker/setup-buildx-action@v1
 
-    - name: Publish Container
+    - shell: bash
       run: |
         APP_NAME=${inputs.app_name}
         IMAGE_NAME=us-docker.pkg.dev/${inputs.gcloud_project}/mogul-artifact-registry/${APP_NAME}:latest
@@ -43,8 +42,7 @@ runs:
         docker build . -f  .github/workflows/Dockerfile  -t $IMAGE_NAME --build-arg APP_NAME=$APP_NAME
         docker push $IMAGE_NAME
 
-    - name: Invoke Pipeline
+    - shell: bash
       run: |
         curl -H "Accept: application/vnd.github.everest-preview+json" -H "Authorization: token ${inputs.gh_token}" --request POST  --data '{"event_type": "update-event"}' https://api.github.com/repos/bootiful-media-mogul/pipeline/dispatches
         echo "Invoking the pipeline to have it deploy everything..."
-
